@@ -32,7 +32,7 @@ from training.metric_logger import MetricLogger
 from training.plotting import plot_metrics
 from training.standard_callbacks import ec_callbacks, ec_linear_callbacks
 from training.train import train
-from extraction.layer_reconstruction import reconstruct_layer, compare_with_teacher, compare_with_teacher_conv
+from extraction.layer_reconstruction import reconstruct_layer, compare_with_teacher
 from datasets.registry import registered_datasets
 
 from extraction.plotting import plot_all_features
@@ -77,8 +77,7 @@ def train_students(
         return model, losses.detach().cpu().numpy()
 
     callbacks = ec_callbacks(training_hparams, train_loader, verbose=verbose, start_step=start_step,
-                             evaluate_every_100_epochs=evaluate_every_epoch,
-                             evaluate_every_10=hasattr(model, 'ConvNet'))  # If ConvNet, evaluate every 10 epochs
+                             evaluate_every_100_epochs=evaluate_every_epoch)
 
     train(training_hparams, model, train_loader, output_location, callbacks, start_step=start_step)
     model.cpu()
@@ -150,14 +149,6 @@ def reconstruct(model: Model,
         w, b, a = parameter_list[i].data, parameter_list[i+1].data,  parameter_list[i+2].data
         w, b, a = [copy.deepcopy(x.cpu().numpy()) for x in [w, b, a]]
 
-        if hasattr(students, 'ConvNet'):
-            # compact 3D kernels into 1D vectors
-            # w = w.reshape([w.shape[0], -1, w.shape[-1]]).transpose(1, 0, 2)
-            # a = a.reshape([a.shape[0], -1, a.shape[-1]]).transpose(1, 0, 2)
-            w = w.transpose(0, 4, 1, 2, 3)  # DIMS: [out_channels, in_channels, kernel_size, kernel_size, #networks]
-            w = w.reshape([w.shape[0], w.shape[1], -1]).transpose(2, 0, 1)
-            a = None
-
         # concatenate the biases to the weights
         w_cat = np.concatenate([w, b[np.newaxis, :, :]], axis=0)
 
@@ -179,28 +170,6 @@ def reconstruct(model: Model,
         w_rec, a_rec = reconstruct_layer(w_cat, N, extraction_hparams.gamma, beta, losses, A=a,
                                          symmetry=symmetry, verbose=verbose, cluster_mask=cluster_mask,
                                          plots_folder=plots_folder, exp_name=f"L{l+1}", final_layer=final_layer)
-
-        # save w_rec in the extraction folder
-        if hasattr(students, 'ConvNet'):
-            if l == 1:  # Manually fix second layer permutation of conv (something scrambled in the process)
-                # perm = [0, 1, 2, 9, 11, 12, 13, 14, 15, 3, 4, 5, 6, 10, 8, 7]
-                perm = [10, 11, 8, 7, 6, 12, 0, 2, 13, 4, 5, 14, 9, 15, 1, 3]
-                perm = np.argsort(perm)
-                w_perm = w_rec[:-1,:].T.reshape(16, 16, 3, 3)
-                w_perm = w_perm[:, perm, :, :].reshape(16, -1).T
-                b_perm = w_rec[-1]
-                b_perm = b_perm[perm]
-                w_rec = np.concatenate([w_perm, b_perm[np.newaxis, :]])
-                best_permutation = None
-
-            np.save(os.path.join(output_location, f"w_rec_L{l+1}"), w_rec)
-            best_permutation = teacher_comparison_conv(w_rec, teacher, l, symmetry, plots_folder, verbose=verbose,
-                                                       permutation= best_permutation if l > 0 else None)
-            np.save(os.path.join(output_location, f"best_permutation_L{l + 1}"), best_permutation)
-            if l == layer:
-                return
-            else:
-                continue
 
         # put the new clustered layer across the N networks
         w_rec = np.stack([w_rec]*N, axis=2)
@@ -369,34 +338,6 @@ def teacher_comparison(teacher, students, symmetry, cluster_mask, plots_folder):
 
     fig.savefig(os.path.join(plots_folder, f"student_alignments_nolog.pdf"))
     plt.close(fig)
-
-
-def teacher_comparison_conv(w_rec, teacher, l, symmetry, plots_folder, permutation=None, verbose=False):
-    wt = copy.deepcopy(list(teacher.parameters())[l*2].data.cpu().numpy().squeeze())
-    inverse_permutation = np.argsort(permutation) if permutation is not None else None
-    if inverse_permutation is not None:
-        wt = wt[:, inverse_permutation, :, :]  # Align input channels to previous best permutation
-    wt = wt.reshape(wt.shape[0], -1).T
-
-    bt = copy.deepcopy(list(teacher.parameters())[l*2+1].data.cpu().numpy().squeeze())
-    ws = copy.deepcopy(w_rec)
-    ws, bs = ws[:-1], ws[-1]
-
-    out = compare_with_teacher_conv(wt, bt, ws, bs, symmetry, verbose=True)
-    fig, best_sims_w, best_permutation, (student_size, teacher_size) = out
-    log_histogram_wandb(np.log10(best_sims_w)+1e-12, "clustering/student_alignment_W", "log cosine distance")
-    log_metric_wandb("clustering/student_size", student_size)
-    log_metric_wandb("clustering/teacher_size", teacher_size)
-    sync_wandb()
-    fig.savefig(os.path.join(plots_folder, f"student_alignments_nolog_L{l+1}.pdf"))
-    plt.close(fig)
-
-    out = compare_with_teacher_conv(wt, bt, ws, bs, symmetry, verbose=False, log=True)
-    fig, _, _, (_, _) = out
-    fig.savefig(os.path.join(plots_folder, f"student_alignments_L{l+1}.pdf"))
-    plt.close(fig)
-
-    return best_permutation
 
 
 def parallel_train(
