@@ -4,7 +4,7 @@
 
 This framework allows to experiment on parameter identification of neural networks. It is the codebase of the following work:  
 
-* [_Expand-and-Cluster: Parameter Recovery of Neural Networks._](https://arxiv.org/abs/2304.12794) Flavio Martinelli, Berfin Şimşek, Wulfram Gerstner and Johanni Brea. ArXiv 2023.
+* [_Expand-and-Cluster: Parameter Recovery of Neural Networks._](https://arxiv.org/abs/2304.12794) Flavio Martinelli, Berfin Şimşek, Wulfram Gerstner and Johanni Brea. ICML 2024.
 
 Created by [Flavio Martinelli](https://scholar.google.com/citations?user=DabSKBgAAAAJ&hl=it) working in the [Laboratory of Computational Neuroscience, EPFL](https://www.epfl.ch/labs/lcn). 
 
