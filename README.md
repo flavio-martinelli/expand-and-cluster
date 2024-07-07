@@ -14,13 +14,12 @@ The skeleton of the codebase is heavily inspired and adapted from [OpenLTH: A Fr
 
 If you use this library in a research paper, please cite the main paper:
 
-> Martinelli, Flavio, et al. "Expand-and-cluster: exact parameter recovery of neural networks." arXiv preprint arXiv:2304.12794 (2023).
+> Martinelli, F., Simsek, B., Gerstner, W., & Brea, J. Expand-and-Cluster: Parameter Recovery of Neural Networks. In Forty-first International Conference on Machine Learning.
 ```
-@article{martinelli2023expand, 
-   title={Expand-and-cluster: exact parameter recovery of neural networks},
-   author={Martinelli, Flavio and Simsek, Berfin and Brea, Johanni and Gerstner, Wulfram}, 
-   journal={arXiv preprint arXiv:2304.12794}, 
-   year={2023}
+@inproceedings{martinelliexpand,
+  title={Expand-and-Cluster: Parameter Recovery of Neural Networks},
+  author={Martinelli, Flavio and Simsek, Berfin and Gerstner, Wulfram and Brea, Johanni},
+  booktitle={Forty-first International Conference on Machine Learning}
 }
 ```
 
